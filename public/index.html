@@ -113,7 +113,11 @@
             resultsDiv.innerHTML = 'Buscando recibos...';
 
             try {
-                const response = await fetch('http://localhost:3000/check-receipts', {
+                const API_URL = window.location.hostname === 'localhost' 
+                    ? 'http://localhost:3000' 
+                    : '';
+                
+                const response = await fetch(`${API_URL}/check-receipts`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

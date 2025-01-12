@@ -8,6 +8,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// In production, allow only requests from our domain
+if (process.env.NODE_ENV === 'production') {
+    app.use(cors({
+        origin: process.env.RENDER_EXTERNAL_URL || 'https://pluz-luz-receipts.onrender.com'
+    }));
+}
+
 app.post('/check-receipts', async (req, res) => {
     const { numeroCliente, startDate, endDate, dayRange } = req.body;
     const results = [];

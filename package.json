@@ -1,5 +1,5 @@
 {
-  "name": "pluz-luz-receipts",
+  "name": "pluz_luz_recibos",
   "version": "1.0.0",
   "description": "Descarga de recibos Pluz Luz",
   "main": "server.js",
@@ -13,5 +13,8 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
