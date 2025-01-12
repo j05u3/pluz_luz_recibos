@@ -30,6 +30,7 @@ app.post('/check-receipts', async (req, res) => {
             { date: new Date('2024-05-13'), number: 3953051 },
             { date: new Date('2024-03-12'), number: 3790710 },
             { date: new Date('2024-04-11'), number: 3871824 },
+            { date: new Date('2024-02-12'), number: 3709720 },
         ];
 
         // Find closest reference date to start
