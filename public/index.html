@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Descarga de Recibos Pluz Luz</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #results {
+            margin-top: 20px;
+        }
+        .receipt-link {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Descarga de Recibos Pluz Luz</h1>
+    <form id="searchForm">
+        <div class="form-group">
+            <label for="numeroCliente">Número de Cliente (6-8 dígitos):</label>
+            <input type="number" id="numeroCliente" required min="100000" max="99999999">
+        </div>
+
+        <div class="form-group">
+            <label for="startDate">Fecha Inicio:</label>
+            <input type="month" id="startDate" required>
+        </div>
+
+        <div class="form-group">
+            <label for="endDate">Fecha Fin:</label>
+            <input type="month" id="endDate" required>
+        </div>
+
+        <div class="form-group">
+            <label>Rango de días del mes que suele ser la Emisión de tus recibos (máximo 6 días de diferencia):</label>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <div>
+                    <label for="startDay">Desde:</label>
+                    <input type="number" id="startDay" min="1" max="31" required style="width: 60px;">
+                </div>
+                <div>
+                    <label for="endDay">Hasta:</label>
+                    <input type="number" id="endDay" min="1" max="31" required style="width: 60px;">
+                </div>
+            </div>
+        </div>
+
+        <button type="submit">Buscar Recibos</button>
+    </form>
+
+    <div id="results"></div>
+
+    <script>
+        document.getElementById('searchForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const numeroCliente = document.getElementById('numeroCliente').value;
+            const startDate = document.getElementById('startDate').value + '-01';
+            const endDate = document.getElementById('endDate').value + '-31';
+            const startDay = parseInt(document.getElementById('startDay').value);
+            const endDay = parseInt(document.getElementById('endDay').value);
+            
+            if (startDay > endDay) {
+                alert('El día inicial debe ser menor o igual al día final');
+                return;
+            }
+            
+            if (endDay - startDay > 5) {
+                alert('El rango no puede ser mayor a 6 días');
+                return;
+            }
+            
+            const dayRange = Array.from(
+                {length: endDay - startDay + 1},
+                (_, i) => startDay + i
+            );
+
+            if (numeroCliente.length < 6 || numeroCliente.length > 8) {
+                alert('El número de cliente debe tener entre 6 y 8 dígitos');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = 'Buscando recibos...';
+
+            try {
+                const response = await fetch('http://localhost:3000/check-receipts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        numeroCliente,
+                        startDate,
+                        endDate,
+                        dayRange
+                    })
+                });
+
+                const results = await response.json();
+                
+                if (results.length === 0) {
+                    resultsDiv.innerHTML = 'No se encontraron recibos para el período especificado.';
+                    return;
+                }
+
+                resultsDiv.innerHTML = '<h2>Recibos encontradas:</h2>' + 
+                    results.map(result => `
+                        <div class="receipt-link">
+                            <p>Fecha: ${result.date}</p>
+                            <p>Número de recibo: ${result.receiptNumber}</p>
+                            <a href="${result.url}" target="_blank">Descargar PDF</a>
+                        </div>
+                    `).join('');
+
+            } catch (error) {
+                resultsDiv.innerHTML = 'Error al buscar las recibos. Por favor intente nuevamente.';
+            }
+        });
+    </script>
+</body>
+</html> 
