@@ -2,6 +2,7 @@ import axios from 'axios';
 import { Reference, ReceiptResponse, ReceiptSearchParams } from '../types';
 import { config } from '../config/app.config';
 import { findClosestReferenceUsingPriorities, interpolateNumber, parseDate } from '../utils/date.utils';
+import logger from '../config/logger.config';
 
 export class ReceiptService {
   private async tryReceiptNumbers(
@@ -18,8 +19,8 @@ export class ReceiptService {
     for (const variation of variations) {
       const receiptNumber = Math.round(baseNumber + variation);
       try {
-        console.log(
-          `trying date: ${formattedDate} with receipt number: ${receiptNumber}`
+        logger.debug(
+          `Attempting receipt fetch - date: ${formattedDate}, receipt number: ${receiptNumber}`
         );
         const url = `https://servicioweb.enel.com/descarga-api-documento-bridge/descargarPDF?ns=${numeroCliente}&nd=${receiptNumber}&fd=${formattedDate}`;
         const response = await axios.head(url);
@@ -28,7 +29,9 @@ export class ReceiptService {
           return { success: true, receiptNumber, url };
         }
       } catch (error) {
-        console.debug(`Failed to fetch receipt: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        logger.debug(
+          `Failed to fetch receipt: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
       }
     }
     return { success: false };
@@ -37,8 +40,8 @@ export class ReceiptService {
   public async findReceipts(params: ReceiptSearchParams) {
     const start = parseDate(params.startDate);
     const end = parseDate(params.endDate);
-    console.log("Start: ", start);
-    console.log("End: ", end);
+    logger.debug({ start, end }, 'Search date range');
+
     const results = [];
     const priorityReferences: Reference[] = [];
 
@@ -47,7 +50,7 @@ export class ReceiptService {
       currentDate < end;
       currentDate.setMonth(currentDate.getMonth() + 1)
     ) {
-      console.log("Current date: ", currentDate);
+      logger.debug({ currentDate }, 'Processing month');
       let foundForThisMonth = false;
 
       for (const day of params.dayRange) {
@@ -55,7 +58,7 @@ export class ReceiptService {
 
         const testDate = new Date(currentDate.getTime());
         testDate.setUTCDate(day);
-        console.log("Test date: ", testDate);
+        logger.debug({ testDate }, 'Processing date');
 
         if (testDate >= start && testDate <= end) {
           const formattedDate = `${String(day).padStart(2, "0")}/${String(
@@ -68,7 +71,13 @@ export class ReceiptService {
             priorityReferences
           );
 
+          logger.debug(
+            { before, after, testDate },
+            'Found reference points for interpolation'
+          );
+
           const currentBase = interpolateNumber(testDate, before, after);
+          logger.debug({ currentBase }, 'Calculated base receipt number');
 
           const result = await this.tryReceiptNumbers(
             currentBase,
@@ -88,6 +97,10 @@ export class ReceiptService {
               date: formattedDate,
               receiptNumber: result.receiptNumber,
             });
+            logger.info(
+              { date: formattedDate },
+              '🙌 Found valid receipt'
+            );
           }
         }
       }
