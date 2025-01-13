@@ -16,24 +16,44 @@ export class ReceiptService {
       variations.push(-i);
     }
 
-    for (const variation of variations) {
-      const receiptNumber = Math.round(baseNumber + variation);
-      try {
-        logger.debug(
-          `Attempting receipt fetch - date: ${formattedDate}, receipt number: ${receiptNumber}`
-        );
-        const url = `https://servicioweb.enel.com/descarga-api-documento-bridge/descargarPDF?ns=${numeroCliente}&nd=${receiptNumber}&fd=${formattedDate}`;
-        const response = await axios.head(url);
+    // Split variations into chunks of 100
+    const chunkSize = 100;
+    const chunks = [];
+    for (let i = 0; i < variations.length; i += chunkSize) {
+      chunks.push(variations.slice(i, i + chunkSize));
+    }
 
-        if (response.status === 200) {
-          return { success: true, receiptNumber, url };
-        }
-      } catch (error) {
-        logger.debug(
-          `Failed to fetch receipt: ${error instanceof Error ? error.message : 'Unknown error'}`
-        );
+    // Process each chunk in parallel
+    for (const chunk of chunks) {
+      const promises = chunk.map(variation => {
+        const receiptNumber = Math.round(baseNumber + variation);
+        return (async () => {
+          try {
+            logger.debug(
+              `Attempting receipt fetch - date: ${formattedDate}, receipt number: ${receiptNumber}`
+            );
+            const url = `https://servicioweb.enel.com/descarga-api-documento-bridge/descargarPDF?ns=${numeroCliente}&nd=${receiptNumber}&fd=${formattedDate}`;
+            const response = await axios.head(url);
+
+            if (response.status === 200) {
+              return { success: true, receiptNumber, url };
+            }
+          } catch (error) {
+            logger.debug(
+              `Failed to fetch receipt: ${error instanceof Error ? error.message : 'Unknown error'}`
+            );
+          }
+          return null;
+        })();
+      });
+
+      const results = await Promise.all(promises);
+      const validResult = results.find(result => result?.success);
+      if (validResult) {
+        return validResult;
       }
     }
+
     return { success: false };
   }
 

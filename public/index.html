@@ -44,6 +44,7 @@
 </head>
 <body>
     <h1>Descarga de Recibos Pluz Luz</h1>
+    <p style="color: #e74c3c; margin-bottom: 20px;">⚠️ La búsqueda puede tardar hasta 10 minutos dependiendo del rango de fechas seleccionado.</p>
     <form id="searchForm">
         <div class="form-group">
             <label for="numeroCliente">Número de Cliente (6-8 dígitos):</label>
@@ -83,6 +84,7 @@
         document.getElementById('searchForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            const startTime = new Date();
             const numeroCliente = document.getElementById('numeroCliente').value;
             const startDate = document.getElementById('startDate').value + '-01';
             const endDate = document.getElementById('endDate').value + '-31';
@@ -110,7 +112,7 @@
             }
 
             const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML = 'Buscando recibos...';
+            resultsDiv.innerHTML = 'Buscando recibos... Por favor espere.';
 
             try {
                 const API_URL = window.location.hostname === 'localhost' 
@@ -132,22 +134,28 @@
 
                 const results = await response.json();
                 
+                const endTime = new Date();
+                const searchDuration = ((endTime - startTime) / 1000).toFixed(1);
+
                 if (results.length === 0) {
-                    resultsDiv.innerHTML = 'No se encontraron recibos para el período especificado.';
+                    resultsDiv.innerHTML = `Búsqueda completada en ${searchDuration} segundos. No se encontraron recibos para el período especificado.`;
                     return;
                 }
 
-                resultsDiv.innerHTML = '<h2>Recibos encontrados:</h2>' + 
-                    results.map(result => `
+                resultsDiv.innerHTML = `
+                    <h2>Recibos encontrados (búsqueda completada en ${searchDuration} segundos):</h2>
+                    ${results.map(result => `
                         <div class="receipt-link">
                             <p>Fecha: ${result.date}</p>
                             <p>Número de recibo: ${result.receiptNumber}</p>
                             <a href="${result.url}" target="_blank">Descargar PDF</a>
                         </div>
-                    `).join('');
+                    `).join('')}`;
 
             } catch (error) {
-                resultsDiv.innerHTML = 'Error al buscar las recibos. Por favor intente nuevamente.';
+                const endTime = new Date();
+                const searchDuration = ((endTime - startTime) / 1000).toFixed(1);
+                resultsDiv.innerHTML = `Error al buscar los recibos después de ${searchDuration} segundos. Por favor intente nuevamente.`;
             }
         });
     </script>
