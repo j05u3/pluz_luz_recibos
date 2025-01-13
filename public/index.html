@@ -52,27 +52,8 @@
         </div>
 
         <div class="form-group">
-            <label for="startDate">Mes Inicio:</label>
-            <input type="month" id="startDate" required>
-        </div>
-
-        <div class="form-group">
-            <label for="endDate">Mes Fin:</label>
-            <input type="month" id="endDate" required>
-        </div>
-
-        <div class="form-group">
-            <label>Rango de días del mes que suele ser la Emisión de tus recibos (máximo 6 días de diferencia, a menos días más rápido se encontrarán los recibos):</label>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <div>
-                    <label for="startDay">Desde:</label>
-                    <input type="number" id="startDay" min="1" max="31" required style="width: 60px;">
-                </div>
-                <div>
-                    <label for="endDay">Hasta:</label>
-                    <input type="number" id="endDay" min="1" max="31" required style="width: 60px;">
-                </div>
-            </div>
+            <label for="emissionDate">Fecha de Emisión:</label>
+            <input type="date" id="emissionDate" required>
         </div>
 
         <button type="submit">Buscar Recibos</button>
@@ -85,27 +66,10 @@
             e.preventDefault();
             
             const startTime = new Date();
-            const numeroCliente = document.getElementById('numeroCliente').value;
-            const startDate = document.getElementById('startDate').value + '-01';
-            const endDate = document.getElementById('endDate').value + '-31';
-            const startDay = parseInt(document.getElementById('startDay').value);
-            const endDay = parseInt(document.getElementById('endDay').value);
-            
-            if (startDay > endDay) {
-                alert('El día inicial debe ser menor o igual al día final');
-                return;
-            }
-            
-            if (endDay - startDay > 5) {
-                alert('El rango no puede ser mayor a 6 días');
-                return;
-            }
-            
-            const dayRange = Array.from(
-                {length: endDay - startDay + 1},
-                (_, i) => startDay + i
-            );
 
+            const numeroCliente = document.getElementById('numeroCliente').value;
+            const emissionDate = document.getElementById('emissionDate').value;
+            
             if (numeroCliente.length < 6 || numeroCliente.length > 8) {
                 alert('El número de cliente debe tener entre 6 y 8 dígitos');
                 return;
@@ -119,6 +83,15 @@
                     ? 'http://localhost:3000' 
                     : '';
                 
+                // Create a date object from the emission date
+                const startDate = new Date(emissionDate);
+                // Create end date as emission date plus one day
+                const endDate = new Date(startDate);
+                endDate.setDate(endDate.getDate() + 1);
+                
+                // Get the day of the month from the emission date
+                const dayRange = startDate.getUTCDate();
+
                 const response = await fetch(`${API_URL}/check-receipts`, {
                     method: 'POST',
                     headers: {
@@ -126,9 +99,9 @@
                     },
                     body: JSON.stringify({
                         numeroCliente,
-                        startDate,
-                        endDate,
-                        dayRange
+                        startDate: startDate.toISOString().split('T')[0],
+                        endDate: endDate.toISOString().split('T')[0],
+                        dayRange: [dayRange]
                     })
                 });
 
