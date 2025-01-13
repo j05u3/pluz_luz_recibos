@@ -19,32 +19,102 @@ if (process.env.NODE_ENV === "production") {
   );
 }
 
-// New function to find closest reference
-function findClosestReference(
+function findClosestReference(targetDate, combinedReferences) {
+  // Combine and sort references
+  const references = [...combinedReferences].sort(
+    (a, b) => a.date.getTime() - b.date.getTime()
+  );
+
+  // Find the two closest references
+  let before = null;
+  let after = null;
+
+  for (let i = 0; i < references.length; i++) {
+    if (references[i].date.getTime() > targetDate.getTime()) {
+      after = references[i];
+      before = references[i - 1] || null;
+      break;
+    }
+  }
+
+  // Handle edge cases
+  if (!after) {
+    // If target is after all references, use last two
+    before = references[references.length - 2];
+    after = references[references.length - 1];
+  } else if (!before) {
+    // If target is before all references, use first two
+    before = references[0];
+    after = references[1];
+  }
+
+  return { before, after };
+}
+
+// New function to find closest reference interval
+function findClosestReferenceUsingPriorities(
   targetDate,
   genericReferences,
   priorityReferences
 ) {
-  // get the references array from both arrays but if the date matches, use the priority reference
-  const references = genericReferences.map((ref) => {
-    const priorityRef = priorityReferences.find(
-      (pRef) => pRef.date.getTime() === ref.date.getTime()
+  // If priority references are not empty
+  // then change the generic references to have the same shift as the closest priority reference
+  if (priorityReferences.length > 0) {
+    // Find the closest priority reference to the target date
+    const priorityRef = priorityReferences.reduce((closest, current) => {
+      const currentDiff = Math.abs(
+        current.date.getTime() - targetDate.getTime()
+      );
+      const closestDiff = Math.abs(
+        closest.date.getTime() - targetDate.getTime()
+      );
+      return currentDiff < closestDiff ? current : closest;
+    }, priorityReferences[0]);
+
+    const { before, after } = findClosestReference(
+      priorityRef.date,
+      genericReferences
     );
-    return priorityRef || ref;
-  });
-
-  let closestRef = references[0];
-  let minDiff = Math.abs(targetDate - references[0].date);
-
-  for (const ref of references) {
-    const diff = Math.abs(targetDate - ref.date);
-    if (diff < minDiff) {
-      minDiff = diff;
-      closestRef = ref;
-    }
+    // Interpolate the number for the generic reference
+    const interpolatedNumber = interpolateNumber(
+      priorityRef.date,
+      before,
+      after
+    );
+    const prioMinusGeneric = priorityRef.number - interpolatedNumber;
+    // Change the generic reference to have the same shift as the priority reference
+    genericReferences.forEach((ref) => {
+      ref.number = ref.number + prioMinusGeneric;
+    });
   }
 
-  return { closestRef, minDiff };
+  // Get the references array from both arrays
+  // but if the date matches then use the priority reference
+  const combinedReferences = [...genericReferences, ...priorityReferences].map(
+    (ref) => {
+      const priorityRef = priorityReferences.find(
+        (pRef) => pRef.date.getTime() === ref.date.getTime()
+      );
+      return priorityRef || ref;
+    }
+  );
+
+  return findClosestReference(targetDate, combinedReferences);
+}
+
+function interpolateNumber(targetDate, beforeRef, afterRef) {
+  const timeRange = afterRef.date.getTime() - beforeRef.date.getTime();
+  const numberRange = afterRef.number - beforeRef.number;
+  const timeDiff = targetDate.getTime() - beforeRef.date.getTime();
+  return Math.round(beforeRef.number + (numberRange * timeDiff) / timeRange);
+}
+
+function parseDate(dateString) {
+  const [year, month, day] = dateString.split("-").map(Number);
+  // Force local timezone interpretation by using specific format
+  const d = new Date(`${year}/${month}/${day}`);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 app.post("/check-receipts", async (req, res) => {
@@ -55,9 +125,9 @@ app.post("/check-receipts", async (req, res) => {
     return res.status(400).json({ error: "Missing required parameters" });
   }
 
-  // Validate date format
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  // Parse dates once
+  const start = parseDate(startDate);
+  const end = parseDate(endDate);
 
   if (isNaN(start.getTime()) || isNaN(end.getTime())) {
     return res.status(400).json({ error: "Invalid date format" });
@@ -70,18 +140,16 @@ app.post("/check-receipts", async (req, res) => {
   const results = [];
 
   try {
-    // Convert dates to Date objects
-    const start = new Date(startDate);
-    const end = new Date(endDate);
     console.log("start: " + start + " end: " + end);
 
     // Reference values
     const references = [
-      { date: new Date("2024-12-11"), number: 4525267 },
-      { date: new Date("2024-05-13"), number: 3953051 },
+      { date: new Date("2024-02-12"), number: 3709720 },
       { date: new Date("2024-03-12"), number: 3790710 },
       { date: new Date("2024-04-11"), number: 3871824 },
-      { date: new Date("2024-02-12"), number: 3709720 },
+      { date: new Date("2024-05-13"), number: 3953051 },
+      { date: new Date("2024-10-14"), number: 4361178 },
+      { date: new Date("2024-12-11"), number: 4525267 },
     ];
 
     const dailyIncrement = 2620;
@@ -113,7 +181,7 @@ app.post("/check-receipts", async (req, res) => {
           }
         } catch (error) {
           // Add at least some logging
-          console.error(`Failed to fetch receipt: ${error.message}`);
+          console.debug(`Failed to fetch receipt: ${error.message}`);
           // Skip failed requests
         }
       }
@@ -124,12 +192,10 @@ app.post("/check-receipts", async (req, res) => {
 
     // Iterate through months
     for (
-      let currentDate = new Date(start);
-      currentDate <= end;
+      let currentDate = new Date(start.getTime());
+      currentDate < end;
       currentDate.setMonth(currentDate.getMonth() + 1)
     ) {
-      // Skip to first day of month to avoid date rollover issues
-      currentDate.setDate(1);
       let foundForThisMonth = false;
 
       // Try each day in the range
@@ -147,23 +213,13 @@ app.post("/check-receipts", async (req, res) => {
           ).padStart(2, "0")}/${currentDate.getFullYear()}`;
 
           // Calculate days difference for base receipt number
-          const { closestRef } = findClosestReference(
-            start,
+          const { before, after } = findClosestReferenceUsingPriorities(
+            testDate,
             references,
             priorityReferences
-            );
-          const daysDiff = Math.floor(
-            (testDate - closestRef.date) / (1000 * 60 * 60 * 24)
           );
-          console.log(
-            "daysDiff: " +
-              daysDiff +
-              " for reference date: " +
-              closestRef.date +
-              " and testDate: " +
-              testDate
-          );
-          const currentBase = closestRef.number + daysDiff * dailyIncrement;
+          // Calculate base receipt number using linear interpolation/extrapolation
+          const currentBase = interpolateNumber(testDate, before, after);
 
           const result = await tryReceiptNumbers(
             currentBase,
