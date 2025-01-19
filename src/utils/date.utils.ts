@@ -49,13 +49,11 @@ export function interpolateNumber(
   return Math.round(beforeRef.number + (numberRange * timeDiff) / timeRange);
 }
 
-export function findClosestReferenceUsingPriorities(
+function combineReferences(
   targetDate: Date,
   genericReferences: Reference[],
   priorityReferences: Reference[]
-): { before: Reference; after: Reference } {
-  // If priority references are not empty
-  // then change the generic references to have the same shift as the closest priority reference
+): Reference[] {
   if (priorityReferences.length > 0) {
     // Find the closest priority reference to the target date
     const priorityRef = priorityReferences.reduce((closest, current) => {
@@ -70,24 +68,21 @@ export function findClosestReferenceUsingPriorities(
     const interpolatedNumber = interpolateNumber(priorityRef.date, before, after);
     const prioMinusGeneric = priorityRef.number - interpolatedNumber;
     
-    // Change the generic reference to have the same shift as the priority reference
+    // Change the generic references to have the same shift as the priority reference
     genericReferences = genericReferences.map(ref => ({
       ...ref,
       number: ref.number + prioMinusGeneric
     }));
   }
 
-  // Get the references array from both arrays
-  // but if the date matches then use the priority reference
-  const combinedReferences = [...genericReferences, ...priorityReferences].reduce((acc, ref) => {
+  // Combine both arrays, preferring priority references when dates match
+  return [...genericReferences, ...priorityReferences].reduce((acc, ref) => {
     const priorityRef = priorityReferences.find(
       pRef => pRef.date.getTime() === ref.date.getTime()
     );
     acc.push(priorityRef || ref);
     return acc;
   }, [] as Reference[]);
-
-  return findClosestReference(targetDate, combinedReferences);
 }
 
 export function getInterpolatedNumber(
@@ -95,10 +90,10 @@ export function getInterpolatedNumber(
   genericReferences: Reference[],
   priorityReferences: Reference[] = []
 ): number {
-  const { before, after } = findClosestReferenceUsingPriorities(
-    targetDate,
-    genericReferences,
-    priorityReferences
-  );
+
+  const combinedReferences = combineReferences(targetDate, genericReferences, priorityReferences);
+
+  const {before, after} = findClosestReference(targetDate, combinedReferences);
+  
   return interpolateNumber(targetDate, before, after);
 } 
