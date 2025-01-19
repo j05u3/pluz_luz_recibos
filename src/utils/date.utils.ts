@@ -88,4 +88,17 @@ export function findClosestReferenceUsingPriorities(
   }, [] as Reference[]);
 
   return findClosestReference(targetDate, combinedReferences);
+}
+
+export function getInterpolatedNumber(
+  targetDate: Date,
+  genericReferences: Reference[],
+  priorityReferences: Reference[] = []
+): number {
+  const { before, after } = findClosestReferenceUsingPriorities(
+    targetDate,
+    genericReferences,
+    priorityReferences
+  );
+  return interpolateNumber(targetDate, before, after);
 } 

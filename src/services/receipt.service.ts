@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Reference, ReceiptResponse, ReceiptSearchParams } from '../types';
 import { config } from '../config/app.config';
-import { findClosestReferenceUsingPriorities, interpolateNumber, parseDate } from '../utils/date.utils';
+import { parseDate, getInterpolatedNumber } from '../utils/date.utils';
 import logger from '../config/logger.config';
 
 export class ReceiptService {
@@ -85,18 +85,11 @@ export class ReceiptService {
             currentDate.getUTCMonth() + 1
           ).padStart(2, "0")}/${currentDate.getUTCFullYear()}`;
 
-          const { before, after } = findClosestReferenceUsingPriorities(
+          const currentBase = getInterpolatedNumber(
             testDate,
             [...config.references],
             priorityReferences
           );
-
-          logger.debug(
-            { before, after, testDate },
-            'Found reference points for interpolation'
-          );
-
-          const currentBase = interpolateNumber(testDate, before, after);
           logger.debug({ currentBase }, 'Calculated base receipt number');
 
           const result = await this.tryReceiptNumbers(
