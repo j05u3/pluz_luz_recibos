@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { Reference, ReceiptResponse, ReceiptSearchParams } from '../types';
 import { config } from '../config/app.config';
-import { parseDate, getInterpolatedNumber } from '../utils/date.utils';
+import { parseDate } from '../utils/date.utils';
 import logger from '../config/logger.config';
+import { getForecastedNumber } from '../utils/forecast.utils';
 
 export class ReceiptService {
   private async tryReceiptNumbers(
@@ -11,7 +12,8 @@ export class ReceiptService {
     numeroCliente: string
   ): Promise<ReceiptResponse> {
     const variations = [0];
-    for (let i = 1; i <= config.dailyIncrement; i++) {
+    for (let i = 1; i <= 30 * config.dailyIncrement; i++) {
+    // for (let i = 23 * config.dailyIncrement; i <= 30 * config.dailyIncrement; i++) {
       variations.push(i);
       variations.push(-i);
     }
@@ -85,7 +87,7 @@ export class ReceiptService {
             currentDate.getUTCMonth() + 1
           ).padStart(2, "0")}/${currentDate.getUTCFullYear()}`;
 
-          const currentBase = getInterpolatedNumber(
+          const currentBase = getForecastedNumber(
             testDate,
             [...config.references],
             priorityReferences
