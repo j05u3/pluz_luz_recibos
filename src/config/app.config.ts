@@ -1,5 +1,7 @@
 export const config = {
   references: [
+    { date: new Date("2023-10-11"), number: 3394909 },
+    { date: new Date("2023-11-13"), number: 3473215 },
     { date: new Date("2023-12-12"), number: 3551682 },
     { date: new Date("2024-01-11"), number: 3630447 },
     { date: new Date("2024-02-12"), number: 3709720 },
