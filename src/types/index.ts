@@ -11,6 +11,7 @@ export interface ReceiptResult {
 
 export interface ReceiptSearchParams {
   numeroCliente: string;
+  numeroMedidor: string;
   startDate: string;
   endDate: string;
   dayRange: number[];

@@ -13,7 +13,7 @@ export class ReceiptService {
   ): Promise<ReceiptResponse> {
     const variations = [0];
     for (let i = 1; i <= 30 * config.dailyIncrement; i++) {
-    // for (let i = 23 * config.dailyIncrement; i <= 30 * config.dailyIncrement; i++) {
+      // for (let i = 23 * config.dailyIncrement; i <= 30 * config.dailyIncrement; i++) {
       variations.push(i);
       variations.push(-i);
     }
@@ -63,6 +63,9 @@ export class ReceiptService {
     const start = parseDate(params.startDate);
     const end = parseDate(params.endDate);
     logger.debug({ start, end }, 'Search date range');
+    const numeroMedidor = parseInt(params.numeroMedidor);
+    // cap the absolute value to monthlyIncrement
+    const refMinusProvidedNumeroMedidor = Math.max(Math.min(config.numeroMedidor - numeroMedidor, config.monthlyIncrement), -1 * config.monthlyIncrement);
 
     const results = [];
     const priorityReferences: Reference[] = [];
@@ -91,7 +94,7 @@ export class ReceiptService {
             testDate,
             [...config.references],
             priorityReferences
-          );
+          ) - refMinusProvidedNumeroMedidor;
           logger.debug({ currentBase }, 'Calculated base receipt number');
 
           const result = await this.tryReceiptNumbers(

@@ -52,6 +52,11 @@
         </div>
 
         <div class="form-group">
+            <label for="numeroMedidor">Número de Medidor:</label>
+            <input type="text" id="numeroMedidor" required>
+        </div>
+
+        <div class="form-group">
             <label for="emissionDate">Fecha de Emisión:</label>
             <input type="date" id="emissionDate" required>
         </div>
@@ -68,10 +73,16 @@
             const startTime = new Date();
 
             const numeroCliente = document.getElementById('numeroCliente').value;
+            const numeroMedidor = document.getElementById('numeroMedidor').value;
             const emissionDate = document.getElementById('emissionDate').value;
             
             if (numeroCliente.length < 6 || numeroCliente.length > 8) {
                 alert('El número de cliente debe tener entre 6 y 8 dígitos');
+                return;
+            }
+
+            if (!numeroMedidor) {
+                alert('El número de medidor es requerido');
                 return;
             }
 
@@ -99,6 +110,7 @@
                     },
                     body: JSON.stringify({
                         numeroCliente,
+                        numeroMedidor,
                         startDate: startDate.toISOString().split('T')[0],
                         endDate: endDate.toISOString().split('T')[0],
                         dayRange: [dayRange]

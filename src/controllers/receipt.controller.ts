@@ -28,6 +28,6 @@ export class ReceiptController {
   }
 
   private validateParams(params: Partial<ReceiptSearchParams>): params is ReceiptSearchParams {
-    return !!(params.numeroCliente && params.startDate && params.endDate && params.dayRange);
+    return !!(params.numeroCliente && params.startDate && params.endDate && params.dayRange && params.numeroMedidor);
   }
 } 

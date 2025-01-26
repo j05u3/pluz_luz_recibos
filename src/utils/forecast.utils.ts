@@ -214,6 +214,44 @@ export const getForecastedNumberFromReferences = (
   return Math.round(baseEstimate);
 };
 
+export const getForecastedNumberFromReferences2 = (
+  targetDate: Date,
+  references: Reference[]
+): number => {
+  // Sort references by date
+  const sortedRefs = [...references].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  // Handle empty or single reference case
+  if (sortedRefs.length === 0) {
+    throw new Error("No references provided");
+  }
+  if (sortedRefs.length === 1) {
+    return sortedRefs[0].number;
+  }
+
+  // Find closest references before and after target date
+  const beforeRefs = sortedRefs.filter(ref => ref.date.getTime() <= targetDate.getTime());
+  const afterRefs = sortedRefs.filter(ref => ref.date.getTime() > targetDate.getTime());
+
+  // Handle extrapolation cases
+  if (beforeRefs.length === 0) {
+    // Extrapolate before first reference using first two references
+    const [ref1, ref2] = sortedRefs;
+    return interpolateNumber(targetDate, ref1, ref2);
+  }
+  if (afterRefs.length === 0) {
+    // Extrapolate after last reference using last two references
+    const ref1 = sortedRefs[sortedRefs.length - 2];
+    const ref2 = sortedRefs[sortedRefs.length - 1];
+    return interpolateNumber(targetDate, ref1, ref2);
+  }
+
+  // Normal interpolation between closest references
+  const beforeRef = beforeRefs[beforeRefs.length - 1];
+  const afterRef = afterRefs[0];
+  return interpolateNumber(targetDate, beforeRef, afterRef);
+};
+
 export function getForecastedNumber(
   targetDate: Date,
   genericReferences: Reference[],
@@ -222,5 +260,5 @@ export function getForecastedNumber(
 
   const combinedReferences = combineReferences(targetDate, genericReferences, priorityReferences);
 
-  return getForecastedNumberFromReferences(targetDate, combinedReferences);
+  return getForecastedNumberFromReferences2(targetDate, combinedReferences);
 } 
