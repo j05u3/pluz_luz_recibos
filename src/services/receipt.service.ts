@@ -4,6 +4,7 @@ import { config } from '../config/app.config';
 import { parseDate } from '../utils/date.utils';
 import logger from '../config/logger.config';
 import { getForecastedNumber } from '../utils/forecast.utils';
+import { retry } from '../utils/retry.utils';
 
 export class ReceiptService {
   private async tryReceiptNumbers(
@@ -18,8 +19,8 @@ export class ReceiptService {
       variations.push(-i);
     }
 
-    // Split variations into chunks of 100
-    const chunkSize = 100;
+    // Split variations into chunks of 5
+    const chunkSize = 5;
     const chunks = [];
     for (let i = 0; i < variations.length; i += chunkSize) {
       chunks.push(variations.slice(i, i + chunkSize));
@@ -30,19 +31,52 @@ export class ReceiptService {
       const promises = chunk.map(variation => {
         const receiptNumber = Math.round(baseNumber + variation);
         return (async () => {
-          try {
-            logger.debug(
-              `Attempting receipt fetch - date: ${formattedDate}, receipt number: ${receiptNumber}`
-            );
-            const url = `https://servicioweb.enel.com/descarga-api-documento-bridge/descargarPDF?ns=${numeroCliente}&nd=${receiptNumber}&fd=${formattedDate}`;
-            const response = await axios.head(url);
 
+          // Link de recibo con nombres y direccion (suele tomar más tiempo porque hay rate limits más estrictos)
+          const url = `https://servicioweb.enel.com/descarga-api-documento-bridge/descargarPDF?ns=${numeroCliente}&nd=${receiptNumber}&fd=${formattedDate}`;
+
+          // Link de recibo sin nombres ni direccion
+          // ejemplo: https://servicioweb.enel.com/descarga-api-documento-bridge/descargar-recibo/{nCliente}}/3551572/12122023
+          // const url = `https://servicioweb.enel.com/descarga-api-documento-bridge/descargar-recibo/${numeroCliente}/${receiptNumber}/${formattedDate}`;
+
+          logger.debug(
+            `Attempting receipt fetch - date: ${formattedDate}, receipt number: ${receiptNumber}`
+          );
+          
+          const checkUrl = async () => {
+            const response = await axios.head(url);
+            
             if (response.status === 200) {
-              return { success: true, receiptNumber, url };
+              // Check if it's not a 0 bytes file by downloading the file
+              const fileResponse = await axios.get(url, { responseType: 'arraybuffer' });
+              if (fileResponse.data.length > 0) {
+                return { success: true, receiptNumber, url };
+              } else {
+                logger.debug({ url }, 'Found 0 bytes file');
+              }
             }
+            return null;
+          };
+          
+          try {
+            await new Promise(resolve => setTimeout(resolve, 3 * 1000));
+            const result = await retry(checkUrl, {
+              maxRetries: 10,
+              initialDelay: 3 * 1000,
+              retryableError: (error: unknown) => {
+                return axios.isAxiosError(error) && error.response?.status === 401;
+              },
+              onRetry: (attempt: number, delay: number, error: unknown) => {
+                logger.debug(
+                  `Retrying URL ${url} (attempt ${attempt}) after ${delay}ms due to 401 error`
+                );
+              }
+            });
+            
+            if (result) return result;
           } catch (error) {
             logger.debug(
-              `Failed to fetch receipt: ${error instanceof Error ? error.message : 'Unknown error'}`
+              `Failed to fetch ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`
             );
           }
           return null;
@@ -89,6 +123,12 @@ export class ReceiptService {
           const formattedDate = `${String(day).padStart(2, "0")}/${String(
             currentDate.getUTCMonth() + 1
           ).padStart(2, "0")}/${currentDate.getUTCFullYear()}`;
+
+          // 13012025 (ddmmyyyy) (para link de recibo sin nombres ni direccion)
+          // const formattedDate = `${String(day).padStart(2, "0")}${String(
+          //   currentDate.getUTCMonth() + 1
+          // ).padStart(2, "0")}${currentDate.getUTCFullYear()}`;
+
 
           const currentBase = getForecastedNumber(
             testDate,

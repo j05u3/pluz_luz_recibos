@@ -35,6 +35,9 @@ export const config = {
     // { date: new Date("2024-12-11"), number: 4525266 },
     // { date: new Date("2025-01-13"), number: 4607646 },
 
+    // (lt 28) (medidor: 210558)
+    // { date: new Date("2024-03-12"), number: 3790600},
+
     // medidor: 23726168
   ],
   dailyIncrement: 2620,
